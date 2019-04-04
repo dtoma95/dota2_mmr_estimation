@@ -1,4 +1,5 @@
 import json
+import os
 
 ROLES = ["carry", "nuker", "initiator", "disabler", "durable", "escape", "support", "pusher", "jungler"]
 
@@ -27,80 +28,88 @@ JUNGLER = [66, 58, 33, 53, 2, 65]
 with open("heroes.json", "r") as f:
     heroes = json.load(f)
 
-f = open("player_match_details1_102.json", "r")
-json_load = f.readline()
-d = json.loads(json_load)
-f.close()
-
 f_write = open("data_all_roles.csv", "w")
 
 
 def main():
 
-    details_for_every_role = initialize()
+    index_for_header = 0
+    for filename in os.listdir("../../../match_details"):
+        if ".json" not in filename:
+            print(filename)
+            continue
 
-    header = "account_id,mmr,"
-    for dic in details_for_every_role:
-        header += ",".join(list(dic.keys()))
-        header += ","
-
-    header = header[:-1]
-
-    f_write.write(header + "\n")
-
-    for player in d:
-        account_id = player["account_id"]
-        recorded_games = len(player["match_history"])
-        mmr = player["solo_mmr"]
-
-        for match in player["match_history"]:
-            if match["game_mode"] != 22:
-                recorded_games -= 1
-                continue
-            for exact_player in match["players"]:
-                if "account_id" in exact_player and exact_player["account_id"] == account_id:
-
-                    if exact_player["hero_id"] in CARRY:
-                        enter_data(0, exact_player, "carry", details_for_every_role)
-                    if exact_player["hero_id"] in NUKER:
-                        enter_data(1, exact_player, "nuker", details_for_every_role)
-                    if exact_player["hero_id"] in INITIATOR:
-                        enter_data(2, exact_player, "initiator", details_for_every_role)
-                    if exact_player["hero_id"] in DISABLER:
-                        enter_data(3, exact_player, "disabler", details_for_every_role)
-                    if exact_player["hero_id"] in DURABLE:
-                        enter_data(4, exact_player, "durable", details_for_every_role)
-                    if exact_player["hero_id"] in ESCAPE:
-                        enter_data(5, exact_player, "escape", details_for_every_role)
-                    if exact_player["hero_id"] in SUPPORT:
-                        enter_data(6, exact_player, "support", details_for_every_role)
-                    if exact_player["hero_id"] in PUSHER:
-                        enter_data(7, exact_player, "pusher", details_for_every_role)
-                    if exact_player["hero_id"] in JUNGLER:
-                        enter_data(8, exact_player, "jungler", details_for_every_role)
-
-        line = str(account_id) + "," + str(mmr) + ","
-
-        for role_dict in details_for_every_role:
-
-            role_name = list(role_dict.keys())[0].split("_")[0]
-            recorded_games = role_dict[role_name + "_recorded_games"]
-            if recorded_games != 0:
-                role_dict[role_name + "_gpm"] /= recorded_games
-                role_dict[role_name + "_xpm"] /= recorded_games
-                role_dict[role_name + "_kills"] /= recorded_games
-                role_dict[role_name + "_deaths"] /= recorded_games
-                role_dict[role_name + "_assists"] /= recorded_games
-                role_dict[role_name + "_lh"] /= recorded_games
-                role_dict[role_name + "_denies"] /= recorded_games
-                role_dict[role_name + "_level"] /= recorded_games
-
-            line += ",".join(str(e) for e in list(role_dict.values()))
-            line += ","
-
-        f_write.write(line[:-1] + "\n")
+        fr = open("../../../match_details/" + filename, "r")
+        stringo = fr.readline()
+        d = json.loads(stringo)
+        fr.close()
 
         details_for_every_role = initialize()
+
+        if index_for_header == 0:
+            header = "account_id,mmr,"
+            for dic in details_for_every_role:
+                header += ",".join(list(dic.keys()))
+                header += ","
+
+            header = header[:-1]
+
+            f_write.write(header + "\n")
+            index_for_header += 1
+
+        for player in d:
+            account_id = player["account_id"]
+            recorded_games = len(player["match_history"])
+            mmr = player["solo_mmr"]
+
+            for match in player["match_history"]:
+                if match["game_mode"] != 22:
+                    recorded_games -= 1
+                    continue
+                for exact_player in match["players"]:
+                    if "account_id" in exact_player and exact_player["account_id"] == account_id:
+
+                        if exact_player["hero_id"] in CARRY:
+                            enter_data(0, exact_player, "carry", details_for_every_role)
+                        if exact_player["hero_id"] in NUKER:
+                            enter_data(1, exact_player, "nuker", details_for_every_role)
+                        if exact_player["hero_id"] in INITIATOR:
+                            enter_data(2, exact_player, "initiator", details_for_every_role)
+                        if exact_player["hero_id"] in DISABLER:
+                            enter_data(3, exact_player, "disabler", details_for_every_role)
+                        if exact_player["hero_id"] in DURABLE:
+                            enter_data(4, exact_player, "durable", details_for_every_role)
+                        if exact_player["hero_id"] in ESCAPE:
+                            enter_data(5, exact_player, "escape", details_for_every_role)
+                        if exact_player["hero_id"] in SUPPORT:
+                            enter_data(6, exact_player, "support", details_for_every_role)
+                        if exact_player["hero_id"] in PUSHER:
+                            enter_data(7, exact_player, "pusher", details_for_every_role)
+                        if exact_player["hero_id"] in JUNGLER:
+                            enter_data(8, exact_player, "jungler", details_for_every_role)
+
+            line = str(account_id) + "," + str(mmr) + ","
+
+            for role_dict in details_for_every_role:
+
+                role_name = list(role_dict.keys())[0].split("_")[0]
+                recorded_games = role_dict[role_name + "_recorded_games"]
+                if recorded_games != 0:
+                    role_dict[role_name + "_gpm"] /= recorded_games
+                    role_dict[role_name + "_xpm"] /= recorded_games
+                    role_dict[role_name + "_kills"] /= recorded_games
+                    role_dict[role_name + "_deaths"] /= recorded_games
+                    role_dict[role_name + "_assists"] /= recorded_games
+                    role_dict[role_name + "_lh"] /= recorded_games
+                    role_dict[role_name + "_denies"] /= recorded_games
+                    role_dict[role_name + "_level"] /= recorded_games
+
+                line += ",".join(str(e) for e in list(role_dict.values()))
+                line += ","
+
+            f_write.write(line[:-1] + "\n")
+
+            details_for_every_role = initialize()
 
     f_write.close()
 
