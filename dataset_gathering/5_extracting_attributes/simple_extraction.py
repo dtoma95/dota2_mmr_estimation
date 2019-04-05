@@ -9,14 +9,14 @@ import os
 f = open("data.csv", "w")
 f.write("account_id,mmr,gpm,xpm,kills,deaths,assists,last_hits,denies,level,recorded_games"+"\n")
  
-files = os.listdir('.')
+files = os.listdir("../../data/match_details")
 br=0
 for filename in files:
     if ".json" not in filename:
         print(filename)
         continue
     
-    fr = open(filename, "r")
+    fr = open("../../data/match_details/" + filename, "r")
     stringo = fr.readline()
     d = json.loads(stringo)
     fr.close()
