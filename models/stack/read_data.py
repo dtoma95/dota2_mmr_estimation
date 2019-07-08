@@ -1,20 +1,26 @@
 import json
 import os
 import numpy as np
+from items_CNN.encoder_model import get_items_model
+from team_CNN.encoder_model import get_team_model
 
 DO_ITEMS = True
 DO_HEROES = True
 DO_ALL_PLAYERS = True
 PATH = "../../data/player_match_details"
 
-with open("heroes.json", "r") as f:
+items_encoder = get_items_model("items_CNN/")
+team_encoder = get_team_model("team_CNN/")
+
+with open("items_CNN/heroes.json", "r") as f:
     heroes = json.load(f)
-with open("items.json", "r") as f:
+with open("items_CNN/items.json", "r") as f:
     items = json.load(f)
 
 def read_data(batchsize):
     x = []
     y = []
+    player_total = 0
     for filename in os.listdir(PATH):
         if ".json" not in filename:
             print(filename)
@@ -49,6 +55,10 @@ def read_data(batchsize):
             if len(retval) == 50:
                 y.append(mmr)
                 x.append(np.array(retval, dtype=float))
+                player_total += 1
+                print(player_total)
+               # if(player_total == 15):
+                #    return x,y
 
     return x, y
 #mmr, win, is_radiant, duration
@@ -100,38 +110,45 @@ def extract_match_data(match, player_id):
 
     if DO_ALL_PLAYERS:
         # my team
-        brojac = 1
+        brojac = 0
+        my_team = []
         for p in match["players"]:
-            try:
-                if player_id == p["account_id"]:
-                    continue
-            except:
-                pass
             if isRadient and p["player_slot"] < 5:
-                retval.extend(player_details(p))
+                my_team.append(player_details(p))
                 brojac += 1
             elif not isRadient and p["player_slot"] > 5:
-                retval.extend(player_details(p))
+                my_team.append(player_details(p))
                 brojac += 1
         if brojac != 5:
             print("MYTEAM", brojac, match["match_id"])
         # enemy team
+        enemy_team = []
         for p in match["players"]:
-            try:
-                if player_id == p["account_id"]:
-                    continue
-            except:
-                pass
             if isRadient and p["player_slot"] > 5:
-                retval.extend(player_details(p))
+                enemy_team.append(player_details(p))
                 brojac += 1
             elif not isRadient and p["player_slot"] < 5:
-                retval.extend(player_details(p))
+                enemy_team.append(player_details(p))
                 brojac += 1
         if brojac != 10:
             print("GRESKA", brojac, match["match_id"])
 
             return None
+
+        team_data = []
+        team_data.append(my_team)
+        team_data.append(enemy_team)
+
+        team_data = np.array(team_data, dtype=float)
+
+        team_data = team_data.reshape(len(team_data), team_data[0].shape[0], team_data[0].shape[1], 1)
+
+        encoded_data = team_encoder.predict(team_data)
+
+        for i in encoded_data[0][0]:
+            retval.append(i[0])
+        for i in encoded_data[1][0]:
+            retval.append(i[0])
     return retval
 
 def player_details(covek):
@@ -154,7 +171,33 @@ def player_details(covek):
                     covek["item_5"], covek["backpack_0"], covek["backpack_1"], covek["backpack_2"]]
         onehotitem = items_one_hot(my_items, items)
         retval.extend(onehotitem)
+    retval.extend([0,0])
     return retval
+
+def main_player_details(covek):
+    retval = []
+    retval.append(covek["gold_per_min"]/1000)
+    retval.append(covek["xp_per_min"]/1000)
+    retval.append(covek["kills"]/50)
+    retval.append(covek["deaths"]/50)
+    retval.append(covek["assists"]/50)
+    retval.append(covek["last_hits"]/1000)
+    retval.append(covek["denies"]/50)
+    retval.append(covek["level"]/25)
+    if DO_HEROES:
+        onehothero = heroes_one_hot(covek["hero_id"], heroes)
+        retval.extend(onehothero)
+    else:
+        retval.append(int(covek["hero_id"])/129)
+    if DO_ITEMS:
+        my_items = [covek["item_0"], covek["item_1"], covek["item_2"], covek["item_3"], covek["item_4"],
+                    covek["item_5"], covek["backpack_0"], covek["backpack_1"], covek["backpack_2"]]
+        onehotitem = items_one_hot(my_items, items)
+        encoded_data = items_encoder.predict(onehotitem)
+
+        retval.extend(encoded_data[0])
+    return retval
+
 
 def heroes_one_hot(hero_id, heroes):
     retval = []
@@ -180,8 +223,13 @@ def items_one_hot(my_items, items):
             continue
         if item_id < 265:
             index_for_dic = item_id - 1
-        else:
+        elif item_id < 272:
             index_for_dic = item_id - 2
-
+        elif item_id < 279:
+            index_for_dic = item_id - 4
+        elif item_id == 279:
+            index_for_dic = item_id - 5
+        else:
+            continue
         retval[index_for_dic] += 1
     return retval

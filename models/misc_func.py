@@ -14,6 +14,14 @@ def normalize(X, y):
     #y = scaler2.transform(y)
     return X, y
 
+def normalize_validation(X, X_validation):
+    scaler = preprocessing.StandardScaler()
+    scaler.fit(X)
+   # X = scaler.transform(X)
+    retval = scaler.transform(X_validation)
+
+    return retval
+
 def dim_reduction(X_train, y_train, X_test):
     dec = decomposition.PCA(n_components=200)
     X_train = dec.fit_transform(X_train, y_train)
@@ -61,7 +69,7 @@ def rmse(predicted_y, actual_y):
     
 def load(filename):
     data = pandas.read_csv(filename)
-
+    data = data[data.mmr !=0]
     x_headers = list(data)
     remove_headers = ['account_id', 'mmr', 'recorded_games']
     x_headers = [h for h in x_headers if h not in remove_headers]
@@ -78,7 +86,36 @@ def load(filename):
     y = data['mmr']
     y = np.array(y.tolist())
     return normalize(x, y)
-       
+
+
+def load_validation(train_filename, ver_filename):
+    data = pandas.read_csv(ver_filename)
+    data = data[data.mmr != 0]
+    x_headers = list(data)
+    remove_headers = ['account_id', 'mmr', 'recorded_games']
+    x_headers = [h for h in x_headers if h not in remove_headers]
+
+    # for h in x_headers:
+    # print(h)
+    # print(max(data[h]))
+    # print(min(data[h]))
+    #    h_min = min(data[h])
+    #    h_max = max(data[h])
+    #    data[h] = (data[h] - h_min)/(h_max - h_min)
+
+    x = np.array(data.as_matrix(x_headers))
+    y = data['mmr']
+    y = np.array(y.tolist())
+
+    data = pandas.read_csv(train_filename)
+    #data = data[data.mmr != 0]
+    x_headers1 = list(data)
+    remove_headers1 = ['account_id', 'mmr', 'recorded_games']
+    x_headers1 = [h for h in x_headers1 if h not in remove_headers1]
+    x1 = np.array(data.as_matrix(x_headers1))
+    return normalize_validation(x1, x), y
+
+
 def run_all(model, sta=0):
     
     if sta==0 or sta==1:

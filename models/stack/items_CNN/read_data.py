@@ -5,7 +5,9 @@ import numpy as np
 DO_ITEMS = True
 DO_HEROES = True
 DO_ALL_PLAYERS = True
-PATH = "../../data/player_match_details"
+PADDING = True
+PADDING_ARRAY = [0]*(308-273)
+PATH = "../../../data/match_details"
 
 with open("heroes.json", "r") as f:
     heroes = json.load(f)
@@ -14,7 +16,6 @@ with open("items.json", "r") as f:
 
 def read_data(batchsize):
     x = []
-    y = []
     for filename in os.listdir(PATH):
         if ".json" not in filename:
             print(filename)
@@ -42,22 +43,21 @@ def read_data(batchsize):
                # if len(line_data) != 94:
                   #  print(len(line_data))
                # print(len(line_data))
-                retval.append(np.array(line_data, dtype=float))
+                x.extend(np.array(line_data, dtype=float))
                 br+=1
-                if br == 50:
-                    break
-            if len(retval) == 50:
-                y.append(mmr)
-                x.append(np.array(retval, dtype=float))
-
-    return x, y
+                print(br)
+               # if br == 50:
+                   # break
+                print(br)
+        if (len(x) > 200000):
+            return x
+    return x
 #mmr, win, is_radiant, duration
 #gpm, xpm, denies, lh
 def extract_match_data(match, player_id):
     retval = []
    # retval.append(player_id)
     #retval.append(match["match_id"])
-    retval.append(match["duration"]/6000)
 
 
     #"tower_status_radiant": 0,
@@ -82,21 +82,7 @@ def extract_match_data(match, player_id):
     if covek is None:
         print("wtf")
         return None
-    if isRadient:
-        if match["radiant_win"]:
-            retval.append(1)
-        else:
-            retval.append(0)
-        retval.append(1)#retval.append(isRadient)
-    else:
-        if match["radiant_win"]:
-            retval.append(0)
-        else:
-            retval.append(1)
-        retval.append(0)#retval.append(isRadient)
-    #retval.append(isRadient)
-    #retval.append(match["duration"])
-    retval.extend(player_details(covek))
+
 
     if DO_ALL_PLAYERS:
         # my team
@@ -108,10 +94,10 @@ def extract_match_data(match, player_id):
             except:
                 pass
             if isRadient and p["player_slot"] < 5:
-                retval.extend(player_details(p))
+                retval.append(player_details(p))
                 brojac += 1
             elif not isRadient and p["player_slot"] > 5:
-                retval.extend(player_details(p))
+                retval.append(player_details(p))
                 brojac += 1
         if brojac != 5:
             print("MYTEAM", brojac, match["match_id"])
@@ -123,10 +109,10 @@ def extract_match_data(match, player_id):
             except:
                 pass
             if isRadient and p["player_slot"] > 5:
-                retval.extend(player_details(p))
+                retval.append(player_details(p))
                 brojac += 1
             elif not isRadient and p["player_slot"] < 5:
-                retval.extend(player_details(p))
+                retval.append(player_details(p))
                 brojac += 1
         if brojac != 10:
             print("GRESKA", brojac, match["match_id"])
@@ -136,24 +122,10 @@ def extract_match_data(match, player_id):
 
 def player_details(covek):
     retval = []
-    retval.append(covek["gold_per_min"]/1000)
-    retval.append(covek["xp_per_min"]/1000)
-    retval.append(covek["kills"]/50)
-    retval.append(covek["deaths"]/50)
-    retval.append(covek["assists"]/50)
-    retval.append(covek["last_hits"]/1000)
-    retval.append(covek["denies"]/50)
-    retval.append(covek["level"]/25)
-    if DO_HEROES:
-        onehothero = heroes_one_hot(covek["hero_id"], heroes)
-        retval.extend(onehothero)
-    else:
-        retval.append(int(covek["hero_id"])/129)
-    if DO_ITEMS:
-        my_items = [covek["item_0"], covek["item_1"], covek["item_2"], covek["item_3"], covek["item_4"],
+    my_items = [covek["item_0"], covek["item_1"], covek["item_2"], covek["item_3"], covek["item_4"],
                     covek["item_5"], covek["backpack_0"], covek["backpack_1"], covek["backpack_2"]]
-        onehotitem = items_one_hot(my_items, items)
-        retval.extend(onehotitem)
+    onehotitem = items_one_hot(my_items, items)
+    retval.extend(onehotitem)
     return retval
 
 def heroes_one_hot(hero_id, heroes):
@@ -180,8 +152,16 @@ def items_one_hot(my_items, items):
             continue
         if item_id < 265:
             index_for_dic = item_id - 1
-        else:
+        elif item_id < 272:
             index_for_dic = item_id - 2
-
+        elif item_id < 279:
+            index_for_dic = item_id - 4
+        elif item_id == 279:
+            index_for_dic = item_id - 5
+        else:
+            continue
         retval[index_for_dic] += 1
+
+    if PADDING:
+        retval.extend(PADDING_ARRAY)
     return retval

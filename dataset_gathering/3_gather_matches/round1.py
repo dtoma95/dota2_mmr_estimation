@@ -20,7 +20,8 @@ for line in reading:
 	player = {"account_id": int(splitovano[0]), "solo_mmr": int(splitovano[1]), "last_match": int(splitovano[2]), "match_history": []}
 
 	try:
-		matches = api.get_match_history(account_id=player["account_id"], start_at_match_id=player["last_match"], game_mode=22, matches_requested=100, min_players=10)
+		matches = api.get_match_history(account_id=player["account_id"],
+										start_at_match_id=player["last_match"], game_mode=22, matches_requested=100, min_players=10)
 		
 	except:
 		print("nista jbg")

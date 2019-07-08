@@ -1,28 +1,26 @@
 import json
 import os
+import numpy as np
 
-DO_ITEMS = False
-DO_HEROES = False
+DO_ITEMS = True
+DO_HEROES = True
 DO_ALL_PLAYERS = True
-PATH = "../../data/tomislav"
+PATH = "../../data/player_match_details"
 
 with open("heroes.json", "r") as f:
     heroes = json.load(f)
 with open("items.json", "r") as f:
     items = json.load(f)
 
-def read_data1(path):
-    f_write = open("one_be_one.csv", "w")
-
-    write_header(f_write)
-
-
-    for filename in os.listdir(path):
+def read_data(batchsize):
+    x = []
+    y = []
+    for filename in os.listdir(PATH):
         if ".json" not in filename:
             print(filename)
             continue
 
-        fr = open(path+"/" + filename, "r")
+        fr = open(PATH+"/" + filename, "r")
         stringo = fr.readline()
         d = json.loads(stringo)
         fr.close()
@@ -32,53 +30,34 @@ def read_data1(path):
             recorded_games = len(player["match_history"])
             mmr = player["solo_mmr"]
 
+            retval = []
+            if len(player["match_history"])<batchsize:
+                print("SKIP PLYAER")
+                continue
+            br = 0
             for match in player["match_history"]:
-                line_data = extract_match_data(match, account_id, mmr)
-                if line_data is not None:
-                    line = ""
-                    for i in line_data:
-                        line += str(i)+","
-                    f_write.write(line[:-1]+"\n")
-        break
-    f_write.close()
+                line_data = extract_match_data(match, account_id)
+                if line_data is None:
+                    continue
+               # if len(line_data) != 94:
+                  #  print(len(line_data))
+               # print(len(line_data))
+                retval.append(np.array(line_data, dtype=float))
+                br+=1
+                if br == 50:
+                    break
+            if len(retval) == 50:
+                y.append(mmr)
+                x.append(np.array(retval, dtype=float))
 
-def write_header(f_write):
-    header = "account_id,match_id,mmr,win,is_radiant,duration"
-    basic_data = ["gold_per_min", "xp_per_min", "kills", "deaths", "assists", "last_hits", "denies", "level"]
-
-    heroes_one_hot = []
-    if DO_HEROES:
-        for id in heroes.keys():
-            heroes_one_hot.append(heroes[id])
-    else:
-        basic_data.append("hero_id")
-
-    items_one_hot = []
-    if DO_ITEMS:
-        for id in items.keys():
-            items_one_hot.append(items[id])
-
-    players = ["this_player"]
-    if DO_ALL_PLAYERS:
-        players.extend(["teammate_1", "teammate_2", "teammate_3", "teammate_4", "enemy_1", "enemy_2", "enemy_3", "enemy_4", "enemy_5"])
-
-
-    for p in players:
-        for b in basic_data:
-            header += "," + p + "_" + b
-        for h in heroes_one_hot:
-            header+= ","+p+"_"+ h
-        for i in items_one_hot:
-            header+= ","+p+"_"+ i
-    f_write.write(header + "\n")
-
-#account_id, mmr, win, is_radiant, duration
+    return x, y
+#mmr, win, is_radiant, duration
 #gpm, xpm, denies, lh
-def extract_match_data(match, player_id, mmr):
+def extract_match_data(match, player_id):
     retval = []
-    retval.append(player_id)
-    retval.append(match["match_id"])
-    retval.append(mmr)
+   # retval.append(player_id)
+    #retval.append(match["match_id"])
+    retval.append(match["duration"]/6000)
 
 
     #"tower_status_radiant": 0,
@@ -90,22 +69,33 @@ def extract_match_data(match, player_id, mmr):
     isRadient = False
     covek = None
     for p in match["players"]:
-        if player_id == p["account_id"]:
-            if p["player_slot"] < 5:
-                isRadient = True
-            else:
-                isRadient = False
-            covek = p
-            break
+        try:
+            if player_id == p["account_id"]:
+                if p["player_slot"] < 5:
+                    isRadient = True
+                else:
+                    isRadient = False
+                covek = p
+                break
+        except:
+            pass
     if covek is None:
         print("wtf")
         return None
     if isRadient:
-        retval.append( match["radiant_win"])
+        if match["radiant_win"]:
+            retval.append(1)
+        else:
+            retval.append(0)
+        retval.append(1)#retval.append(isRadient)
     else:
-        retval.append(not match["radiant_win"])
-    retval.append(isRadient)
-    retval.append(match["duration"])
+        if match["radiant_win"]:
+            retval.append(0)
+        else:
+            retval.append(1)
+        retval.append(0)#retval.append(isRadient)
+    #retval.append(isRadient)
+    #retval.append(match["duration"])
     retval.extend(player_details(covek))
 
     if DO_ALL_PLAYERS:
@@ -146,19 +136,19 @@ def extract_match_data(match, player_id, mmr):
 
 def player_details(covek):
     retval = []
-    retval.append(covek["gold_per_min"])
-    retval.append(covek["xp_per_min"])
-    retval.append(covek["kills"])
-    retval.append(covek["deaths"])
-    retval.append(covek["assists"])
-    retval.append(covek["last_hits"])
-    retval.append(covek["denies"])
-    retval.append(covek["level"])
+    retval.append(covek["gold_per_min"]/1000)
+    retval.append(covek["xp_per_min"]/1000)
+    retval.append(covek["kills"]/50)
+    retval.append(covek["deaths"]/50)
+    retval.append(covek["assists"]/50)
+    retval.append(covek["last_hits"]/1000)
+    retval.append(covek["denies"]/50)
+    retval.append(covek["level"]/25)
     if DO_HEROES:
         onehothero = heroes_one_hot(covek["hero_id"], heroes)
         retval.extend(onehothero)
     else:
-        retval.append(covek["hero_id"])
+        retval.append(int(covek["hero_id"])/129)
     if DO_ITEMS:
         my_items = [covek["item_0"], covek["item_1"], covek["item_2"], covek["item_3"], covek["item_4"],
                     covek["item_5"], covek["backpack_0"], covek["backpack_1"], covek["backpack_2"]]
@@ -195,5 +185,3 @@ def items_one_hot(my_items, items):
 
         retval[index_for_dic] += 1
     return retval
-
-read_data1(PATH)
